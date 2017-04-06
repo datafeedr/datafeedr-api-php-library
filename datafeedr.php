@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Datafeedr API PHP Client Library.
+ * Datafeedr API PHP Library
  *
  * @version 1.0.0
  *
