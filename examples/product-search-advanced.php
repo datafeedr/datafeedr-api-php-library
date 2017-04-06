@@ -69,9 +69,9 @@ $search->addSort( '-finalprice' );
 
 /**
  * Limit the number of products returned. Default is 20. Maximum is 100. Below we set the number of products
- * to be returned to 50.
+ * to be returned to 10.
  */
-$search->setLimit( 50 );
+$search->setLimit( 10 );
 
 /**
  * This allows you to access page 2, 3, 4... of your search results. The maximum number of products returned
@@ -79,7 +79,7 @@ $search->setLimit( 50 );
  * all 10,000 you can set the offset to 100 to access products 101 ~ 200. Set offset to 200 to access products
  * 201 ~ 300.
  */
-$search->setOffset( 1 );
+$search->setOffset( 10 );
 
 try {
 	$products = $search->execute();
