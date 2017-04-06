@@ -58,5 +58,40 @@
     </li>
 </ul>
 
+<h2>Field Requests</h2>
+
+<ul>
+    <li>
+        <a href="get-fields.php" target="_blank">Get default searchable fields</a>
+    </li>
+    <li>
+        <a href="get-fields-for-specific-networks.php" target="_blank">Get searchable fields for specific networks</a>
+    </li>
+</ul>
+
+<h1>Product Search Request</h1>
+
+<ul>
+    <li>
+        <a href="product-search-simple.php" target="_blank">Simple Product Search</a>
+    </li>
+    <li>
+        <a href="product-search-advanced.php" target="_blank">Advanced Product Search</a>
+    </li>
+    <li>
+        <a href="" target="_blank"></a>
+    </li>
+    <li>
+        <a href="" target="_blank"></a>
+    </li>
+    <li>
+        <a href="" target="_blank"></a>
+    </li>
+    <li>
+        <a href="" target="_blank"></a>
+    </li>
+</ul>
+
+
 </body>
 </html>
