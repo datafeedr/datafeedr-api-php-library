@@ -58,7 +58,5 @@
     </li>
 </ul>
 
-<ul>
-</ul>
 </body>
 </html>
