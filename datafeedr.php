@@ -232,7 +232,7 @@ class DatafeedrApi {
 	/**
 	 * Return a list of searchable fields.
 	 *
-	 * The getFields command returns a list of fields which are available in all given networks (source_ids).
+	 * @todo - Does this return a list of all fields for a specific network or only indexed/searchable fields? Update docs accordingly.
 	 *
 	 * @since 1.0.0
 	 *
