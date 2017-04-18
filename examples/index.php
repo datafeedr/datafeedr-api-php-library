@@ -92,9 +92,6 @@
     <li>
         <a href="search-amazon-by-ids.php" target="_blank">Search Amazon by Product IDs (EAN, UPC, ISBN)</a>
     </li>
-    <li>
-        <a href="" target="_blank"></a>
-    </li>
 </ul>
 
 
