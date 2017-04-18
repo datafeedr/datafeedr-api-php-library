@@ -69,17 +69,17 @@
     </li>
 </ul>
 
-<h1>Product Search Request</h1>
+<h2>Product Search Request</h2>
 
 <ul>
     <li>
-        <a href="product-search-simple.php" target="_blank">Simple Product Search</a>
+        <a href="search-products-simple.php" target="_blank">Simple Product Search</a>
     </li>
     <li>
-        <a href="product-search-advanced.php" target="_blank">Advanced Product Search</a>
+        <a href="search-products-advanced.php" target="_blank">Advanced Product Search</a>
     </li>
     <li>
-        <a href="" target="_blank"></a>
+        <a href="search-products-by-id.php" target="_blank">Get Products by Product ID(s)</a>
     </li>
     <li>
         <a href="" target="_blank"></a>
