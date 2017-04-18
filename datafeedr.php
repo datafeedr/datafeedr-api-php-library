@@ -1421,6 +1421,9 @@ class DatafeedrAmazonSearchRequest extends DatafeedrAmazonRequest {
 	/**
 	 * Run search and return an array of products.
 	 *
+	 * IMPORTANT - The Amazon API returns a MAXIMUM of 10 products per API request and a maximum of
+	 * 50 products per search query.
+	 *
 	 * @since 1.0.0
 	 *
 	 * @return array An array of products.
