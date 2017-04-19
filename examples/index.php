@@ -94,6 +94,14 @@
     </li>
 </ul>
 
+<h2>Miscellaneous Examples</h2>
+
+<ul>
+    <li>
+        <a href="misc-get-zanox-affiliate-id.php" target="_blank">Getting Your Zanox Affiliate ID</a>
+    </li>
+</ul>
+
 
 </body>
 </html>
