@@ -3,7 +3,7 @@
 /**
  * Datafeedr API PHP Library
  *
- * @version 1.0.0
+ * @version 1.0.2
  *
  * Copyright (c) 2007 ~ 2017, Datafeedr - All Rights Reserved
  *
