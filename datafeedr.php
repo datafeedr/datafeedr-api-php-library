@@ -39,6 +39,7 @@ class DatafeedrApi {
 	protected $_userAgent;
 
 	protected $_status;
+	protected $_errors;
 
 	const SORT_DESCENDING = - 1;
 	const SORT_ASCENDING = + 1;
