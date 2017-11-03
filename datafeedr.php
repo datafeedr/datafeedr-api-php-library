@@ -3,7 +3,7 @@
 /**
  * Datafeedr API PHP Library
  *
- * @version 1.0.2
+ * @version 2.0.1
  *
  * Copyright (c) 2007 ~ 2017, Datafeedr - All Rights Reserved
  *
@@ -32,6 +32,8 @@ class DatafeedrApi {
 
 	protected $_hasZlib;
 	protected $_host;
+	protected $_retry;
+	protected $_retryTimeout;
 	protected $_returnObjects;
 	protected $_timeout;
 	protected $_transport;
@@ -45,33 +47,40 @@ class DatafeedrApi {
 	const SORT_ASCENDING = + 1;
 
 	const DEFAULT_URL = 'http://api.datafeedr.com';
-	const DEFAULT_TIMEOUT = 30;
 
 	const REQUEST_COMPRESSION_THRESHOLD = 1024;
 
-	const VERSION = '0.1b.8486';
+	const VERSION = '2.0.1';
 
 	/**
 	 * DatafeedrApi constructor.
-	 *
-	 * The optional $transport parameter tells how HTTP requests should be made.
-	 * It can be either a string that describes one of built-in transports ("curl", "file", "socket" or "wordpress"),
-	 * or a callable object that should accept a URL, an array of headers and a string of post data and
-	 * should return an array [int http response status, string response body].
 	 *
 	 * @since 1.0.0
 	 *
 	 * @param string $accessId Datafeedr API Access ID.
 	 * @param string $secretKey Datafeedr API Secret Key.
-	 * @param string $transport Optional. HTTP transport function. Default: 'curl'
-	 * @param int $timeout Optional. HTTP connection timeout, in seconds. Default: 0
-	 * @param boolean $returnObjects Optional. True to return Objects. False to return associative arrays Default: false
+	 * @param array $options Options.
+     *
+     * Possble options:
+     *
+     * - url: API url. Default: 'http://api.datafeedr.com'
+     * - transport: HTTP transport name or function. Default: 'wordpress'
+     * - timeout: HTTP connection timeout, in seconds. Default: 0
+     * - returnObjects: True to return Objects. False to return associative arrays Default: false
+     * - retry: How many times to repeat a request on a temporary failure. Default: 0 (do not repeat)
+     * - retryTimeout: Timeout between retry requests, in seconds. Default: 5
+     *
+	 * The `transport` option tells how HTTP requests should be made.
+	 * It can be either a string that describes one of built-in transports ("curl", "file", "socket" or "wordpress"),
+	 * or a callable object that should accept a URL, an array of headers and a string of post data and
+	 * should return an array [int http response status, string response body].
 	 *
-	 * @throws DatafeedrError Throws error if transport method is invalid.
+	 *
+	 * @throws DatafeedrError Throws error if any option is invalid.
 	 */
-	public function __construct( $accessId, $secretKey, $transport = 'curl', $timeout = 0, $returnObjects = false ) {
+	public function __construct( $accessId, $secretKey, $options = null ) {
 
-		$this->_accessId  = $accessId;
+		$this->_accessId = $accessId;
 		$this->_secretKey = $secretKey;
 
 		$this->_errors = array(
@@ -83,39 +92,7 @@ class DatafeedrApi {
 			9 => 'DatafeedrServerError',
 		);
 
-		$this->_url           = self::DEFAULT_URL;
-		$r                    = parse_url( $this->_url );
-		$this->_host          = $r['host'];
-		$this->_timeout       = $timeout ? $timeout : self::DEFAULT_TIMEOUT;
-		$this->_returnObjects = $returnObjects;
-		$tr                   = $transport;
-
-		switch ( $transport ) {
-			case 'curl':
-				$this->_transport = array( $this, '_transportCurl' );
-				break;
-			case 'file':
-				$this->_transport = array( $this, '_transportFile' );
-				break;
-			case 'socket':
-				$this->_transport = array( $this, '_transportSocket' );
-				break;
-			case 'wordpress':
-				if ( ! function_exists( 'wp_remote_post' ) ) {
-					throw new DatafeedrError( "Wordpress transport requires wp_remote_post" );
-				}
-				$this->_transport = array( $this, '_transportWordpress' );
-				break;
-			default:
-				if ( ! is_callable( $transport ) ) {
-					throw new DatafeedrError( "Transport must be a function" );
-				}
-				$this->_transport = $transport;
-				$tr               = 'custom';
-		}
-
-		$this->_hasZlib   = function_exists( 'gzcompress' );
-		$this->_userAgent = sprintf( 'datafeedr.php.%s/%s/zlib=%s', self::VERSION, $tr, $this->_hasZlib ? 'yes' : 'no' );
+		$this->_parseOptions( $options );
 	}
 
 	/**
@@ -398,7 +375,8 @@ class DatafeedrApi {
 
 		$headers [] = 'Content-Length: ' . strlen( $postdata );
 
-		list( $status, $response ) = call_user_func( $this->_transport, $url, $headers, $postdata );
+		list( $status, $response )  = $this->_performRequest( $url, $headers, $postdata );
+
 		if ( strlen( $response ) ) {
 			$response = json_decode( $response, ! $this->_returnObjects );
 		}
@@ -417,6 +395,127 @@ class DatafeedrApi {
 		$this->_status = $this->_get( $response, 'status' );
 
 		return $response;
+	}
+
+	/**
+	 * Returns the default set of options.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @returns array $options.
+	 *
+	 */
+	protected function _defaultOptions( ) {
+		return array(
+			'url'           => self::DEFAULT_URL,
+			'transport'     => 'wordpress_or_curl',
+     		'timeout'       => 30,
+     		'returnObjects' => false,
+     		'retry'         => 0,
+     		'retryTimeout'  => 5
+		);
+	}
+
+	/**
+	 * Parse constructor options.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param array $options.
+	 *
+	 * @throws DatafeedrError Throws error if any option is invalid.
+	 */
+	protected function _parseOptions( $options ) {
+		$opts = $this->_defaultOptions();
+
+		if ( !is_null( $options ) ) {
+			if ( !is_array( $options ) ) {
+				throw new DatafeedrError( "Options must be an array" );
+			}
+
+			foreach ( $options as $key => $value ) {
+				if ( isset( $opts[$key] ) ) {
+					$opts[$key] = $value;
+				}
+			}
+		}
+
+		$ur = parse_url( $opts['url'] );
+		$tr = $opts['transport'];
+
+		$this->_url           = $opts['url'];
+		$this->_host          = $ur['host'];
+		$this->_timeout       = intval( $opts['timeout'] );
+		$this->_returnObjects = intval( $opts['returnObjects'] );
+		$this->_retry         = intval( $opts['retry'] );
+		$this->_retryTimeout  = intval( $opts['retryTimeout'] );
+
+		switch ( $tr ) {
+			case 'curl':
+				$this->_transport = array( $this, '_transportCurl' );
+				break;
+			case 'file':
+				$this->_transport = array( $this, '_transportFile' );
+				break;
+			case 'socket':
+				$this->_transport = array( $this, '_transportSocket' );
+				break;
+			case 'wordpress':
+				if ( ! function_exists( 'wp_remote_post' ) ) {
+					throw new DatafeedrError( "Wordpress transport requires wp_remote_post" );
+				}
+				$this->_transport = array( $this, '_transportWordpress' );
+				break;
+			case 'wordpress_or_curl':
+				if ( ! function_exists( 'wp_remote_post' ) ) {
+					$this->_transport = array( $this, '_transportCurl' );
+					$tr = 'curl';
+				} else {
+					$this->_transport = array( $this, '_transportWordpress' );
+					$tr = 'wordpress';
+				}
+				break;
+
+			default:
+				if ( ! is_callable( $tr ) ) {
+					throw new DatafeedrError( "Transport must be a function" );
+				}
+				$this->_transport = $tr;
+				$tr = 'custom';
+		}
+
+		$this->_hasZlib   = function_exists( 'gzcompress' );
+		$this->_userAgent = sprintf( 'datafeedr.php.%s/%s/zlib=%s', self::VERSION, $tr, $this->_hasZlib ? 'yes' : 'no' );
+	}
+
+	/**
+	 * Perform an HTTP request.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param string $url
+	 * @param array $headers
+	 * @param string $postdata
+	 *
+	 * @throws DatafeedrConnectionError
+	 *
+	 * @return array An array of (status, responseBody)
+	 *
+	 */
+	protected function _performRequest( $url, $headers, $postdata ) {
+		$retry = $this->_retry;
+
+		while ( true ) {
+			try {
+				return call_user_func( $this->_transport, $url, $headers, $postdata );
+			} catch ( DatafeedrConnectionError $err ) {
+				if( $retry <= 0 ) {
+					throw $err;
+				}
+				sleep( $this->_retryTimeout );
+				$retry--;
+			}
+		}
 	}
 
 	/**
@@ -475,7 +574,7 @@ class DatafeedrApi {
 	 * @param  array $headers Array of headers.
 	 * @param string $postdata Post data.
 	 *
-	 * @throws DatafeedrHTTPError Throws error if curl_errno() returns an error.
+	 * @throws DatafeedrConnectionError Throws error if curl_errno() returns an error.
 	 *
 	 * @return array (int http status, string response body)
 	 */
@@ -497,7 +596,7 @@ class DatafeedrApi {
 		curl_close( $ch );
 
 		if ( $errno ) {
-			throw new DatafeedrHTTPError( $errmsg, $errno );
+			throw new DatafeedrConnectionError( $errmsg, $errno );
 		}
 
 		return array( $status, $response );
@@ -512,7 +611,7 @@ class DatafeedrApi {
 	 * @param  array $headers Array of headers.
 	 * @param string $postdata Post data.
 	 *
-	 * @throws DatafeedrHTTPError Throws error if $response is false.
+	 * @throws DatafeedrConnectionError Throws error if $response is false.
 	 *
 	 * @return array (int http status, string response body)
 	 */
@@ -536,7 +635,7 @@ class DatafeedrApi {
 				$status = intval( $match[1] );
 			}
 		} else if ( $response === false ) {
-			throw new DatafeedrHTTPError( "HTTP error: invalid response" );
+			throw new DatafeedrConnectionError( "Invalid response" );
 		}
 
 		return array( $status, $response );
@@ -551,7 +650,7 @@ class DatafeedrApi {
 	 * @param  array $headers Array of headers.
 	 * @param string $postdata Post data.
 	 *
-	 * @throws DatafeedrHTTPError Throws error if $response is invalid.
+	 * @throws DatafeedrConnectionError Throws error if $response is invalid.
 	 *
 	 * @return array (int http status, string response body)
 	 */
@@ -563,7 +662,7 @@ class DatafeedrApi {
 
 		$fp = fsockopen( $parts['host'], 80, $errno, $errmsg, $this->_timeout );
 		if ( ! $fp ) {
-			throw new DatafeedrHTTPError( $errmsg, $errno );
+			throw new DatafeedrConnectionError( $errmsg, $errno );
 		}
 
 		fwrite( $fp, "POST " . $parts['path'] . " HTTP/1.1\r\n" );
@@ -578,12 +677,12 @@ class DatafeedrApi {
 
 		$buf = explode( "\r\n\r\n", $buf, 2 );
 		if ( count( $buf ) != 2 ) {
-			throw new DatafeedrHTTPError( "Invalid response" );
+			throw new DatafeedrConnectionError( "Invalid response" );
 		}
 		if ( preg_match( '/HTTP.+?(\d\d\d)/', $buf[0], $match ) ) {
 			$status = intval( $match[1] );
 		} else {
-			throw new DatafeedrHTTPError( "Invalid status" );
+			throw new DatafeedrConnectionError( "Invalid status" );
 		}
 
 		return array( $status, $buf[1] );
@@ -598,6 +697,7 @@ class DatafeedrApi {
 	 * @param  array $headers Array of headers.
 	 * @param string $postdata Post data.
 	 *
+	 * @throws DatafeedrConnectionError Throws error if $response is WP_Error and the error code is 'http_request_failed'.
 	 * @throws DatafeedrHTTPError Throws error if $response is WP_Error.
 	 *
 	 * @return array (int http status, string response body)
@@ -625,7 +725,14 @@ class DatafeedrApi {
 		$res = wp_remote_post( $url, $args );
 
 		if ( is_wp_error( $res ) ) {
-			throw new DatafeedrHTTPError( $res->get_error_message() );
+			$code    = $res->get_error_code();
+			$message = $res->get_error_message();
+
+			if ( $code === 'http_request_failed' ) {
+				throw new DatafeedrConnectionError( $message );
+			} else {
+				throw new DatafeedrHTTPError( $message );
+			}
 		}
 
 		return array( $res['response']['code'], $res['body'] );
@@ -1542,6 +1649,14 @@ class DatafeedrLimitExceededError extends DatafeedrError {
  * API error: Unspecified HTTP error.
  */
 class DatafeedrHTTPError extends DatafeedrError {
+}
+
+/**
+ * Class DatafeedrConnectionError.
+ *
+ * API error: Connection error.
+ */
+class DatafeedrConnectionError extends DatafeedrError {
 }
 
 /**
