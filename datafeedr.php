@@ -501,7 +501,6 @@ class DatafeedrApi {
 	 * @throws DatafeedrConnectionError
 	 *
 	 * @return array An array of (status, responseBody)
-	 *
 	 */
 	protected function _performRequest( $url, $headers, $postdata ) {
 		$retry = $this->_retry;
@@ -517,6 +516,8 @@ class DatafeedrApi {
 				$retry --;
 			}
 		}
+
+		return array();
 	}
 
 	/**
