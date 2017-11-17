@@ -60,16 +60,16 @@ class DatafeedrApi {
 	 * @param string $accessId Datafeedr API Access ID.
 	 * @param string $secretKey Datafeedr API Secret Key.
 	 * @param array $options Options.
-     *
-     * Possble options:
-     *
-     * - url: API url. Default: 'http://api.datafeedr.com'
-     * - transport: HTTP transport name or function. Default: 'wordpress'
-     * - timeout: HTTP connection timeout, in seconds. Default: 0
-     * - returnObjects: True to return Objects. False to return associative arrays Default: false
-     * - retry: How many times to repeat a request on a temporary failure. Default: 0 (do not repeat)
-     * - retryTimeout: Timeout between retry requests, in seconds. Default: 5
-     *
+	 *
+	 * Possble options:
+	 *
+	 * - url: API url. Default: 'http://api.datafeedr.com'
+	 * - transport: HTTP transport name or function. Default: 'wordpress'
+	 * - timeout: HTTP connection timeout, in seconds. Default: 0
+	 * - returnObjects: True to return Objects. False to return associative arrays Default: false
+	 * - retry: How many times to repeat a request on a temporary failure. Default: 0 (do not repeat)
+	 * - retryTimeout: Timeout between retry requests, in seconds. Default: 5
+	 *
 	 * The `transport` option tells how HTTP requests should be made.
 	 * It can be either a string that describes one of built-in transports ("curl", "file", "socket" or "wordpress"),
 	 * or a callable object that should accept a URL, an array of headers and a string of post data and
@@ -80,7 +80,7 @@ class DatafeedrApi {
 	 */
 	public function __construct( $accessId, $secretKey, $options = null ) {
 
-		$this->_accessId = $accessId;
+		$this->_accessId  = $accessId;
 		$this->_secretKey = $secretKey;
 
 		$this->_errors = array(
@@ -375,7 +375,7 @@ class DatafeedrApi {
 
 		$headers [] = 'Content-Length: ' . strlen( $postdata );
 
-		list( $status, $response )  = $this->_performRequest( $url, $headers, $postdata );
+		list( $status, $response ) = $this->_performRequest( $url, $headers, $postdata );
 
 		if ( strlen( $response ) ) {
 			$response = json_decode( $response, ! $this->_returnObjects );
@@ -405,14 +405,14 @@ class DatafeedrApi {
 	 * @returns array $options.
 	 *
 	 */
-	protected function _defaultOptions( ) {
+	protected function _defaultOptions() {
 		return array(
 			'url'           => self::DEFAULT_URL,
 			'transport'     => 'wordpress_or_curl',
-     		'timeout'       => 30,
-     		'returnObjects' => false,
-     		'retry'         => 0,
-     		'retryTimeout'  => 5
+			'timeout'       => 30,
+			'returnObjects' => false,
+			'retry'         => 0,
+			'retryTimeout'  => 5
 		);
 	}
 
@@ -421,21 +421,21 @@ class DatafeedrApi {
 	 *
 	 * @since 2.0.0
 	 *
-	 * @param array $options.
+	 * @param array $options .
 	 *
 	 * @throws DatafeedrError Throws error if any option is invalid.
 	 */
 	protected function _parseOptions( $options ) {
 		$opts = $this->_defaultOptions();
 
-		if ( !is_null( $options ) ) {
-			if ( !is_array( $options ) ) {
+		if ( ! is_null( $options ) ) {
+			if ( ! is_array( $options ) ) {
 				throw new DatafeedrError( "Options must be an array" );
 			}
 
 			foreach ( $options as $key => $value ) {
-				if ( isset( $opts[$key] ) ) {
-					$opts[$key] = $value;
+				if ( isset( $opts[ $key ] ) ) {
+					$opts[ $key ] = $value;
 				}
 			}
 		}
@@ -469,10 +469,10 @@ class DatafeedrApi {
 			case 'wordpress_or_curl':
 				if ( ! function_exists( 'wp_remote_post' ) ) {
 					$this->_transport = array( $this, '_transportCurl' );
-					$tr = 'curl';
+					$tr               = 'curl';
 				} else {
 					$this->_transport = array( $this, '_transportWordpress' );
-					$tr = 'wordpress';
+					$tr               = 'wordpress';
 				}
 				break;
 
@@ -481,11 +481,12 @@ class DatafeedrApi {
 					throw new DatafeedrError( "Transport must be a function" );
 				}
 				$this->_transport = $tr;
-				$tr = 'custom';
+				$tr               = 'custom';
 		}
 
 		$this->_hasZlib   = function_exists( 'gzcompress' );
-		$this->_userAgent = sprintf( 'datafeedr.php.%s/%s/zlib=%s', self::VERSION, $tr, $this->_hasZlib ? 'yes' : 'no' );
+		$this->_userAgent = sprintf( 'datafeedr.php.%s/%s/zlib=%s', self::VERSION, $tr,
+			$this->_hasZlib ? 'yes' : 'no' );
 	}
 
 	/**
@@ -509,11 +510,11 @@ class DatafeedrApi {
 			try {
 				return call_user_func( $this->_transport, $url, $headers, $postdata );
 			} catch ( DatafeedrConnectionError $err ) {
-				if( $retry <= 0 ) {
+				if ( $retry <= 0 ) {
 					throw $err;
 				}
 				sleep( $this->_retryTimeout );
-				$retry--;
+				$retry --;
 			}
 		}
 	}
