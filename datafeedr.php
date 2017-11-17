@@ -265,7 +265,7 @@ class DatafeedrApi {
 	 * @param integer $adspaceId Zanox Adspace ID.
 	 * @param string $connectId Zanox Connection ID.
 	 *
-	 * @return array An array of Zanox merchant IDs ("zmids").
+	 * @return array An array of arrays (adspace_id, merchant_id, program_id, zmid).
 	 */
 	public function getZanoxMerchantIds( $merchantId, $adspaceId, $connectId ) {
 
@@ -278,6 +278,32 @@ class DatafeedrApi {
 		$response = $this->apiCall( 'zanox_merchant_ids', $request );
 
 		return $this->_get( $response, 'zanox_merchant_ids' );
+	}
+
+	/**
+	 * Return a list of PerformanceHorizon campaign references ("camrefs").
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param integer|array $merchantId Merchant ID or an array of merchant IDs.
+	 * @param string $applicationKey PerformanceHorizon application_key.
+	 * @param string $userApiKey PerformanceHorizon user_api_key.
+	 * @param string $publisherId PerformanceHorizon publisher_id.
+	 *
+	 * @return array An array of arrays (campaign_id, camref, merchant_id).
+	 */
+
+	public function getPerformanceHorizonCamrefs( $merchantId, $applicationKey, $userApiKey, $publisherId ) {
+
+		$request = array();
+
+		$request['merchant_ids']    = $this->_intarray( $merchantId );
+		$request['application_key'] = $applicationKey;
+		$request['user_api_key']    = $userApiKey;
+		$request['publisher_id']    = $publisherId;
+
+		$response = $this->apiCall( 'performancehorizon_camrefs', $request );
+		return $this->_get( $response, 'performancehorizon_camrefs' );
 	}
 
 	/**
