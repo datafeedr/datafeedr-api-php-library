@@ -1451,6 +1451,7 @@ class DatafeedrAmazonRequest extends DatafeedrSearchRequestBase {
 		parent::__construct( $api );
 
 		$this->_hosts = array(
+			'AU' => 'webservices.amazon.com.au',
 			'BR' => 'webservices.amazon.com.br',
 			'CA' => 'webservices.amazon.ca',
 			'CN' => 'webservices.amazon.cn',
@@ -1461,6 +1462,7 @@ class DatafeedrAmazonRequest extends DatafeedrSearchRequestBase {
 			'IT' => 'webservices.amazon.it',
 			'JP' => 'webservices.amazon.co.jp',
 			'MX' => 'webservices.amazon.com.mx',
+			'TR' => 'webservices.amazon.com.tr',
 			'UK' => 'webservices.amazon.co.uk',
 			'US' => 'webservices.amazon.com',
 		);
