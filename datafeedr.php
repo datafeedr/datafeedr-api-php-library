@@ -3,7 +3,7 @@
 /**
  * Datafeedr API PHP Library
  *
- * @version 2.0.2
+ * @version 2.0.3
  *
  * Copyright (c) 2007 ~ 2017, Datafeedr - All Rights Reserved
  *
@@ -50,7 +50,7 @@ class DatafeedrApi {
 
 	const REQUEST_COMPRESSION_THRESHOLD = 1024;
 
-	const VERSION = '2.0.2';
+	const VERSION = '2.0.3';
 
 	/**
 	 * DatafeedrApi constructor.
@@ -926,6 +926,7 @@ class DatafeedrSearchRequest extends DatafeedrSearchRequestBase {
 	protected $_offset;
 	protected $_priceGroups;
 	protected $_excludeDuplicates;
+	protected $_merchantLimit;
 
 	/**
 	 * DatafeedrSearchRequest constructor.
@@ -945,6 +946,7 @@ class DatafeedrSearchRequest extends DatafeedrSearchRequestBase {
 		$this->_offset            = 0;
 		$this->_priceGroups       = 0;
 		$this->_excludeDuplicates = '';
+		$this->_merchantLimit     = 0;
 	}
 
 	/**
@@ -1059,6 +1061,21 @@ class DatafeedrSearchRequest extends DatafeedrSearchRequestBase {
 	 */
 	public function setOffset( $offset ) {
 		$this->_offset = $offset;
+
+		return $this;
+	}
+
+	/**
+	 * Set a limit of results by merchant.
+	 *
+	 * @since 2.0.3
+	 *
+	 * @param integer $limit The limit.
+	 *
+	 * @return DatafeedrSearchRequest Returns $this.
+	 */
+	public function setMerchantLimit( $limit ) {
+		$this->_merchantLimit = $limit;
 
 		return $this;
 	}
@@ -1188,6 +1205,10 @@ class DatafeedrSearchRequest extends DatafeedrSearchRequestBase {
 
 		if ( $this->_priceGroups ) {
 			$request['price_groups'] = $this->_priceGroups;
+		}
+
+		if ( $this->_merchantLimit ) {
+			$request['merchant_limit'] = $this->_merchantLimit;
 		}
 
 		if ( $this->_excludeDuplicates ) {
