@@ -3,7 +3,7 @@
 /**
  * Datafeedr API PHP Library
  *
- * @version 2.0.3
+ * @version 3.0.0
  *
  * Copyright (c) 2007 ~ 2017, Datafeedr - All Rights Reserved
  *
@@ -37,6 +37,7 @@ class DatafeedrApi {
 	protected $_returnObjects;
 	protected $_timeout;
 	protected $_transport;
+	protected $_https;
 	protected $_url;
 	protected $_userAgent;
 
@@ -46,11 +47,11 @@ class DatafeedrApi {
 	const SORT_DESCENDING = - 1;
 	const SORT_ASCENDING = + 1;
 
-	const DEFAULT_URL = 'http://api.datafeedr.com';
+	const DEFAULT_HOST = 'api.datafeedr.com';
 
 	const REQUEST_COMPRESSION_THRESHOLD = 1024;
 
-	const VERSION = '2.0.3';
+	const VERSION = '3.0.0';
 
 	/**
 	 * DatafeedrApi constructor.
@@ -63,7 +64,8 @@ class DatafeedrApi {
 	 *
 	 * Possble options:
 	 *
-	 * - url: API url. Default: 'http://api.datafeedr.com'
+	 * - host: API host name. Default: 'api.datafeedr.com'
+	 * - https: TRUE if using https. Default: FALSE.
 	 * - transport: HTTP transport name or function. Default: 'wordpress'
 	 * - timeout: HTTP connection timeout, in seconds. Default: 0
 	 * - returnObjects: True to return Objects. False to return associative arrays Default: false
@@ -71,7 +73,7 @@ class DatafeedrApi {
 	 * - retryTimeout: Timeout between retry requests, in seconds. Default: 5
 	 *
 	 * The `transport` option tells how HTTP requests should be made.
-	 * It can be either a string that describes one of built-in transports ("curl", "file", "socket" or "wordpress"),
+	 * It can be either a string that describes one of built-in transports ("curl", "file" or "wordpress"),
 	 * or a callable object that should accept a URL, an array of headers and a string of post data and
 	 * should return an array [int http response status, string response body].
 	 *
@@ -403,8 +405,12 @@ class DatafeedrApi {
 		$request['aid']       = $this->_accessId;
 		$request['timestamp'] = gmdate( 'Y-m-d H:i:s' );
 
-		$message              = $request['aid'] . $action . $request['timestamp'];
-		$request['signature'] = hash_hmac( 'sha256', $message, $this->_secretKey, false );
+		if ( $this->_https ) {
+            $request['akey'] = $this->_secretKey;
+        } else {
+    		$message              = $request['aid'] . $action . $request['timestamp'];
+	    	$request['signature'] = hash_hmac( 'sha256', $message, $this->_secretKey, false );
+        }
 
 		$postdata = json_encode( $request );
 		$url      = $this->_url . '/' . $action;
@@ -455,7 +461,8 @@ class DatafeedrApi {
 	 */
 	protected function _defaultOptions() {
 		return array(
-			'url'           => self::DEFAULT_URL,
+			'host'          => self::DEFAULT_HOST,
+			'https'         => false,
 			'transport'     => 'wordpress_or_curl',
 			'timeout'       => 30,
 			'returnObjects' => false,
@@ -488,11 +495,12 @@ class DatafeedrApi {
 			}
 		}
 
-		$ur = parse_url( $opts['url'] );
+		$pt = $opts['https'] ? 'https' : 'http';
 		$tr = $opts['transport'];
 
-		$this->_url           = $opts['url'];
-		$this->_host          = $ur['host'];
+		$this->_url           = $pt . '://' . $opts['host'];
+		$this->_https         = $opts['https'];
+		$this->_host          = $opts['host'];
 		$this->_timeout       = intval( $opts['timeout'] );
 		$this->_returnObjects = intval( $opts['returnObjects'] );
 		$this->_retry         = intval( $opts['retry'] );
@@ -504,9 +512,6 @@ class DatafeedrApi {
 				break;
 			case 'file':
 				$this->_transport = array( $this, '_transportFile' );
-				break;
-			case 'socket':
-				$this->_transport = array( $this, '_transportSocket' );
 				break;
 			case 'wordpress':
 				if ( ! function_exists( 'wp_remote_post' ) ) {
@@ -692,53 +697,6 @@ class DatafeedrApi {
 	}
 
 	/**
-	 * Perform a HTTP post request using sockets.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @param  string $url Request url.
-	 * @param  array $headers Array of headers.
-	 * @param string $postdata Post data.
-	 *
-	 * @throws DatafeedrConnectionError Throws error if $response is invalid.
-	 *
-	 * @return array (int http status, string response body)
-	 */
-	protected function _transportSocket( $url, $headers, $postdata ) {
-
-		$parts  = parse_url( $url );
-		$errno  = 0;
-		$errmsg = '';
-
-		$fp = fsockopen( $parts['host'], 80, $errno, $errmsg, $this->_timeout );
-		if ( ! $fp ) {
-			throw new DatafeedrConnectionError( $errmsg, $errno );
-		}
-
-		fwrite( $fp, "POST " . $parts['path'] . " HTTP/1.1\r\n" );
-		fwrite( $fp, implode( "\r\n", $headers ) . "\r\n\r\n" );
-		fwrite( $fp, $postdata );
-
-		$buf = '';
-		while ( ! feof( $fp ) ) {
-			$buf .= fgets( $fp, 1024 );
-		}
-		fclose( $fp );
-
-		$buf = explode( "\r\n\r\n", $buf, 2 );
-		if ( count( $buf ) != 2 ) {
-			throw new DatafeedrConnectionError( "Invalid response" );
-		}
-		if ( preg_match( '/HTTP.+?(\d\d\d)/', $buf[0], $match ) ) {
-			$status = intval( $match[1] );
-		} else {
-			throw new DatafeedrConnectionError( "Invalid status" );
-		}
-
-		return array( $status, $buf[1] );
-	}
-
-	/**
 	 * Perform a HTTP post request using Wordpress functions.
 	 *
 	 * @since 1.0.0
@@ -858,7 +816,6 @@ class DatafeedrSearchRequestBase {
 	 *          'result_count' => integer,
 	 *          'status'       => array,
 	 *          'time'         => integer,
-	 *          'total_found'  => integer,
 	 *          'version'      => string,
 	 *      )
 	 *
@@ -1512,66 +1469,25 @@ class DatafeedrAmazonRequest extends DatafeedrSearchRequestBase {
 	}
 
 	/**
-	 * Returns Amazon HTTP Post URL.
+	 * Prepare am API request for Amazon.
 	 *
-	 * @since 1.0.0
-	 *
-	 * @param string $operation Type of query. (Ex. ItemSearch, ItemLookup)
-	 * @param array $params An array of query params. Example:
-	 *        Array (
-	 *            [AWSAccessKeyId] => f8kCGEgcjV89PHkNdVX8
-	 *            [AssociateTag] => mysite-20
-	 *            [Brand] => bogner
-	 *            [Operation] => ItemSearch
-	 *            [ResponseGroup] => ItemAttributes,Images,OfferFull,BrowseNodes,EditorialReview,VariationSummary
-	 *            [SearchIndex] => Apparel
-	 *            [Service] => AWSECommerceService
-	 *            [Timestamp] => 2017-04-04T20:42:43Z
-	 *            [Version] => 2011-08-01
-	 *        )
-	 * @param null|array $defaults . Example:
-	 *        Array (
-	 *            [ResponseGroup] => ItemAttributes,Images,OfferFull,BrowseNodes,EditorialReview,VariationSummary
-	 *            [SearchIndex] => All
-	 *        )
-	 *
-	 * @return string URL for Amazon request.
+	 * @since 3.0.0
+     *
+	 * @param string $operation
+	 * @param array $params
+     *
+	 * @return array
 	 */
-	protected function _amazonUrl( $operation, $params, $defaults = null ) {
-
-		$params = array_filter( $params );
-
-		if ( ! is_null( $defaults ) ) {
-			foreach ( $defaults as $k => $v ) {
-				if ( ! isset( $params[ $k ] ) ) {
-					$params[ $k ] = $v;
-				}
-			}
-		}
-
-		$params["Operation"]      = $operation;
-		$params["Service"]        = "AWSECommerceService";
-		$params["AWSAccessKeyId"] = $this->_awsAccessKeyId;
-		$params["AssociateTag"]   = $this->_awsAssociateTag;
-		$params["Version"]        = self::AWS_VERSION;
-		$params["Timestamp"]      = gmdate( "Y-m-d\\TH:i:s\\Z" );
-
-		ksort( $params );
-		$query = array();
-		foreach ( $params as $k => $v ) {
-			if ( is_array( $v ) ) {
-				$v = implode( ',', $v );
-			}
-			$query [] = $k . '=' . rawurlencode( $v );
-		}
-		$query = implode( '&', $query );
-		$host  = $this->_hosts[ $this->_locale ];
-		$path  = "/onca/xml";
-		$subj  = sprintf( "GET\n%s\n%s\n%s", $host, $path, $query );
-		$sign  = rawurlencode( base64_encode( hash_hmac( "sha256", $subj, $this->_awsSecretKey, true ) ) );
-
-		return "http://{$host}{$path}?{$query}&Signature={$sign}";
-	}
+	protected function _amazonRequest( $operation, $params ) {
+		return array(
+            'amz_access' => $this->_awsAccessKeyId,
+            'amz_key'    => $this->_awsSecretKey,
+            'amz_tag'    => $this->_awsAssociateTag,
+            'locale'     => $this->_locale,
+            'operation'  => $operation,
+            'params'     => $params,
+        );
+    }
 }
 
 /**
@@ -1591,7 +1507,7 @@ class DatafeedrAmazonSearchRequest extends DatafeedrAmazonRequest {
 	 *
 	 * @return DatafeedrAmazonSearchRequest Returns $this.
 	 *
-	 * @see http://docs.aws.amazon.com/AWSECommerceService/latest/DG/ItemSearch.html
+	 * @see https://webservices.amazon.com/paapi5/documentation/search-items.html#ItemLookup-rp
 	 */
 	public function addParam( $name, $value ) {
 		$this->_params[ $name ] = $value;
@@ -1611,15 +1527,9 @@ class DatafeedrAmazonSearchRequest extends DatafeedrAmazonRequest {
 	 */
 	public function execute() {
 
-		$defaults = array(
-			'ResponseGroup' => 'ItemAttributes,Images,OfferFull,BrowseNodes,EditorialReview,VariationSummary',
-			'SearchIndex'   => 'All',
-		);
-
-		$url = $this->_amazonUrl( 'ItemSearch', $this->_params, $defaults );
-
-		$this->_apiCall( 'amazon_search', array( 'url' => $url ) );
-
+		$params = array_filter( $this->_params );
+		$req = $this->_amazonRequest( 'SearchItems', $params );
+		$this->_apiCall( 'amazon_find', $req );
 		return $this->_responseItem( 'products', array() );
 	}
 }
@@ -1641,7 +1551,7 @@ class DatafeedrAmazonLookupRequest extends DatafeedrAmazonRequest {
 	 *
 	 * @return DatafeedrAmazonLookupRequest Returns $this.
 	 *
-	 * @see http://docs.aws.amazon.com/AWSECommerceService/latest/DG/ItemLookup.html
+	 * @see https://webservices.amazon.com/paapi5/documentation/get-items.html#ItemLookup-rp
 	 */
 	public function addParam( $name, $value ) {
 		$this->_params[ $name ] = $value;
@@ -1663,23 +1573,17 @@ class DatafeedrAmazonLookupRequest extends DatafeedrAmazonRequest {
 
 		foreach ( $types as $type ) {
 			if ( isset( $params[ $type ] ) ) {
-				$params['IdType'] = strtoupper( $type );
-				$params['ItemId'] = $params[ $type ];
+				$params['ItemIdType'] = strtoupper( $type );
+				$params['ItemIds'] = $params[ $type ];
+				if ( is_string ( $params['ItemIds'] ) ) {
+				    $params['ItemIds'] = explode ( ',' , $params['ItemIds'] );
+                }
 				unset( $params[ $type ] );
 			}
 		}
 
-		$defaults = array(
-			'ResponseGroup' => 'ItemAttributes,Images,OfferFull,BrowseNodes,EditorialReview,VariationSummary',
-		);
-
-		if ( isset( $params['IdType'] ) && $params['IdType'] != 'ASIN' ) {
-			$defaults['SearchIndex'] = 'All';
-		}
-
-		$url = $this->_amazonUrl( 'ItemLookup', $params, $defaults );
-		$this->_apiCall( 'amazon_search', array( 'url' => $url ) );
-
+		$req = $this->_amazonRequest( 'GetItems', $params );
+		$this->_apiCall( 'amazon_find', $req );
 		return $this->_responseItem( 'products', array() );
 	}
 }
